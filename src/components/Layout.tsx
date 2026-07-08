@@ -41,9 +41,9 @@ function Brand() {
   return (
     <div className="flex items-center gap-2.5 px-1">
       <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-600 text-sm font-bold text-white">
-        C
+        K
       </div>
-      <div className="text-[15px] font-semibold text-slate-900">Office CRM</div>
+      <div className="text-[15px] font-semibold text-slate-900">KOBIS Connect</div>
     </div>
   );
 }
@@ -54,7 +54,7 @@ export default function Layout({ children }: { children: ReactNode }) {
   const location = useLocation();
   const title =
     NAV.find((n) => n.to === location.pathname)?.label ??
-    (location.pathname.startsWith("/contacts") ? "Contacts" : "Office CRM");
+    (location.pathname.startsWith("/contacts") ? "Contacts" : "KOBIS Connect");
 
   return (
     <div className="min-h-screen lg:grid lg:grid-cols-[248px_1fr]">

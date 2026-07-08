@@ -1,4 +1,4 @@
-# Office CRM
+# KOBIS Connect
 
 A simple, clean CRM for a small team — **contacts & companies**, **tasks /
 follow-ups**, and a **dashboard** with KPIs and an activity feed.

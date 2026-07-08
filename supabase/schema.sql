@@ -1,5 +1,5 @@
 -- =====================================================================
---  Office CRM — Supabase schema
+--  KOBIS Connect — Supabase schema
 --  Run this once in your Supabase project:  SQL Editor -> New query -> Run
 -- =====================================================================
 
