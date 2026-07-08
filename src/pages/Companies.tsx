@@ -15,11 +15,15 @@ import {
   TextArea,
   TextInput,
 } from "../components/ui";
+import { CompaniesIcon, PlusIcon, TrashIcon } from "../components/icons";
+import { useToast } from "../context/ToastContext";
+import { useHotkeys } from "../lib/useHotkeys";
 
 type Form = Pick<Company, "name" | "website" | "industry" | "notes">;
 const emptyForm: Form = { name: "", website: "", industry: "", notes: "" };
 
 export default function Companies() {
+  const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
@@ -29,13 +33,19 @@ export default function Companies() {
   const [saving, setSaving] = useState(false);
 
   async function refresh() {
-    const [co, c] = await Promise.all([listCompanies(), listContacts()]);
-    setCompanies(co);
-    setContacts(c);
-    setLoading(false);
+    try {
+      const [co, c] = await Promise.all([listCompanies(), listContacts()]);
+      setCompanies(co);
+      setContacts(c);
+    } catch {
+      toast.error("Couldn't load companies. Check your connection.");
+    } finally {
+      setLoading(false);
+    }
   }
   useEffect(() => {
     refresh();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const contactCount = (id: string) =>
@@ -57,8 +67,18 @@ export default function Companies() {
     setModalOpen(true);
   }
 
+  useHotkeys(
+    {
+      n: (e) => {
+        e.preventDefault();
+        openNew();
+      },
+    },
+    !modalOpen
+  );
+
   async function save() {
-    if (!form.name.trim()) return;
+    if (!form.name.trim() || saving) return;
     setSaving(true);
     const payload: Form = {
       name: form.name.trim(),
@@ -66,18 +86,46 @@ export default function Companies() {
       industry: form.industry || null,
       notes: form.notes || null,
     };
-    if (editing) await updateCompany(editing.id, payload);
-    else await createCompany(payload);
-    setSaving(false);
-    setModalOpen(false);
-    await refresh();
+    try {
+      if (editing) {
+        await updateCompany(editing.id, payload);
+        toast.success(`Saved ${payload.name}`);
+      } else {
+        await createCompany(payload);
+        toast.success(`Added ${payload.name}`);
+      }
+      setModalOpen(false);
+      await refresh();
+    } catch {
+      toast.error("Couldn't save. Please try again.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function remove(co: Company) {
-    if (!confirm(`Delete ${co.name}? Contacts will be kept but unlinked.`))
-      return;
-    await deleteCompany(co.id);
-    await refresh();
+    try {
+      await deleteCompany(co.id);
+      await refresh();
+      toast.success(`Deleted ${co.name}`, {
+        label: "Undo",
+        onClick: async () => {
+          try {
+            await createCompany({
+              name: co.name,
+              website: co.website,
+              industry: co.industry,
+              notes: co.notes,
+            });
+            await refresh();
+          } catch {
+            toast.error("Couldn't restore the company.");
+          }
+        },
+      });
+    } catch {
+      toast.error("Couldn't delete. Please try again.");
+    }
   }
 
   if (loading) return <Spinner />;
@@ -86,18 +134,18 @@ export default function Companies() {
     <div className="mx-auto max-w-6xl space-y-5">
       <div className="flex justify-end">
         <button className="btn-primary" onClick={openNew}>
-          + Add company
+          <PlusIcon size={16} /> Add company
         </button>
       </div>
 
       {companies.length === 0 ? (
         <EmptyState
-          icon="▤"
+          icon={<CompaniesIcon size={22} />}
           title="No companies yet"
           subtitle="Group your contacts under the organisations they belong to."
           action={
             <button className="btn-primary" onClick={openNew}>
-              + Add your first company
+              <PlusIcon size={16} /> Add your first company
             </button>
           }
         />
@@ -114,25 +162,24 @@ export default function Companies() {
                   {co.name[0]?.toUpperCase() ?? "?"}
                 </div>
                 <button
-                  className="btn-danger opacity-0 transition-opacity group-hover:opacity-100 !px-2 !py-1 text-xs"
+                  className="btn-danger !px-2 !py-1 text-xs opacity-0 transition-opacity focus-visible:opacity-100 group-hover:opacity-100"
                   onClick={(e) => {
                     e.stopPropagation();
                     remove(co);
                   }}
+                  aria-label={`Delete ${co.name}`}
                 >
-                  Delete
+                  <TrashIcon size={15} />
                 </button>
               </div>
               <div className="mt-3 font-semibold text-slate-900">{co.name}</div>
-              <div className="text-sm text-slate-500">
-                {co.industry || "—"}
-              </div>
+              <div className="text-sm text-slate-500">{co.industry || "—"}</div>
               {co.website && (
                 <div className="mt-1 truncate text-sm text-brand-600">
                   {co.website}
                 </div>
               )}
-              <div className="mt-3 text-xs text-slate-400">
+              <div className="tnum mt-3 text-xs text-slate-400">
                 {contactCount(co.id)} contact
                 {contactCount(co.id) === 1 ? "" : "s"}
               </div>
@@ -144,10 +191,15 @@ export default function Companies() {
       <Modal
         open={modalOpen}
         onClose={() => setModalOpen(false)}
+        onSubmit={save}
         title={editing ? "Edit company" : "New company"}
         footer={
           <>
-            <button className="btn-ghost" onClick={() => setModalOpen(false)}>
+            <span className="mr-auto hidden text-xs text-slate-400 sm:block">
+              <span className="kbd">⌘</span>
+              <span className="kbd ml-1">⏎</span> to save
+            </span>
+            <button className="btn-secondary" onClick={() => setModalOpen(false)}>
               Cancel
             </button>
             <button

@@ -5,34 +5,41 @@ import {
   type TextareaHTMLAttributes,
   type SelectHTMLAttributes,
 } from "react";
+import { CloseIcon } from "./icons";
 
 // --- Modal -----------------------------------------------------------------
 
 export function Modal({
   open,
   onClose,
+  onSubmit,
   title,
   children,
   footer,
 }: {
   open: boolean;
   onClose: () => void;
+  /** Fired on Cmd/Ctrl+Enter — wire to the primary action. */
+  onSubmit?: () => void;
   title: string;
   children: ReactNode;
   footer?: ReactNode;
 }) {
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+      if ((e.metaKey || e.ctrlKey) && e.key === "Enter") onSubmit?.();
+    };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
+  }, [open, onClose, onSubmit]);
 
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-900/40 p-4 sm:p-8">
+    <div className="animate-fade-in fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-900/40 p-4 backdrop-blur-[2px] sm:p-8">
       <div
-        className="mt-4 w-full max-w-lg rounded-2xl bg-white shadow-pop sm:mt-12"
+        className="animate-modal-in mt-4 w-full max-w-lg rounded-2xl bg-white shadow-pop sm:mt-12"
         role="dialog"
         aria-modal="true"
       >
@@ -43,12 +50,12 @@ export function Modal({
             className="btn-ghost -mr-2 h-8 w-8 !px-0"
             aria-label="Close"
           >
-            ✕
+            <CloseIcon size={18} />
           </button>
         </div>
         <div className="px-5 py-4">{children}</div>
         {footer && (
-          <div className="flex justify-end gap-2 border-t border-slate-100 px-5 py-4">
+          <div className="flex items-center justify-end gap-2 border-t border-slate-100 px-5 py-4">
             {footer}
           </div>
         )}
@@ -74,16 +81,27 @@ export function Field({
   );
 }
 
-export function TextInput(props: InputHTMLAttributes<HTMLInputElement>) {
-  return <input {...props} className="input" />;
+export function TextInput({
+  className = "",
+  ...props
+}: InputHTMLAttributes<HTMLInputElement>) {
+  return <input {...props} className={`input ${className}`} />;
 }
 
-export function TextArea(props: TextareaHTMLAttributes<HTMLTextAreaElement>) {
-  return <textarea {...props} className="input min-h-[80px] resize-y" />;
+export function TextArea({
+  className = "",
+  ...props
+}: TextareaHTMLAttributes<HTMLTextAreaElement>) {
+  return (
+    <textarea {...props} className={`input min-h-[80px] resize-y ${className}`} />
+  );
 }
 
-export function Select(props: SelectHTMLAttributes<HTMLSelectElement>) {
-  return <select {...props} className="input" />;
+export function Select({
+  className = "",
+  ...props
+}: SelectHTMLAttributes<HTMLSelectElement>) {
+  return <select {...props} className={`input ${className}`} />;
 }
 
 // --- Misc ------------------------------------------------------------------
@@ -110,17 +128,19 @@ export function EmptyState({
   subtitle,
   action,
 }: {
-  icon: string;
+  icon: ReactNode;
   title: string;
   subtitle: string;
   action?: ReactNode;
 }) {
   return (
-    <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 bg-white/60 px-6 py-14 text-center">
-      <div className="mb-3 text-3xl">{icon}</div>
+    <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 bg-white/60 px-6 py-16 text-center">
+      <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100 text-slate-500">
+        {icon}
+      </div>
       <h3 className="text-sm font-semibold text-slate-800">{title}</h3>
       <p className="mt-1 max-w-sm text-sm text-slate-500">{subtitle}</p>
-      {action && <div className="mt-4">{action}</div>}
+      {action && <div className="mt-5">{action}</div>}
     </div>
   );
 }

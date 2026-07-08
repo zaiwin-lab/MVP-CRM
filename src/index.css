@@ -1,5 +1,3 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -11,29 +9,59 @@
   }
   body {
     @apply bg-slate-50 text-slate-800 font-sans;
+    font-feature-settings: "cv11", "ss01";
+  }
+  /* Numbers read as precise, aligned data. */
+  .tnum {
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+  }
+  /* Visible, consistent keyboard focus everywhere. */
+  :focus-visible {
+    outline: 2px solid theme("colors.brand.500");
+    outline-offset: 2px;
+    border-radius: 4px;
   }
 }
 
 @layer components {
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500/40 disabled:opacity-50 disabled:pointer-events-none;
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-sm font-medium transition-[background-color,color,box-shadow,transform] duration-150 focus:outline-none focus-visible:outline-2 disabled:opacity-50 disabled:pointer-events-none active:scale-[0.98];
   }
   .btn-primary {
     @apply btn bg-brand-600 text-white hover:bg-brand-700 shadow-sm;
   }
+  .btn-secondary {
+    @apply btn border border-slate-300 bg-white text-slate-700 hover:bg-slate-100;
+  }
   .btn-ghost {
-    @apply btn text-slate-600 hover:bg-slate-100;
+    @apply btn text-slate-600 hover:bg-slate-100 hover:text-slate-800;
   }
   .btn-danger {
     @apply btn text-red-600 hover:bg-red-50;
   }
   .input {
-    @apply w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30;
+    @apply w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 transition-shadow focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/25;
   }
   .label {
     @apply mb-1.5 block text-xs font-medium text-slate-600;
   }
   .card {
     @apply rounded-xl border border-slate-200 bg-white shadow-card;
+  }
+  /* Inline keyboard hint chip. */
+  .kbd {
+    @apply inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded border border-slate-300 bg-slate-100 px-1 text-[11px] font-medium text-slate-500;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

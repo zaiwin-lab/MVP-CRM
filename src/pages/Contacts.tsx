@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   createContact,
   deleteContact,
@@ -25,6 +25,9 @@ import {
   TextArea,
   TextInput,
 } from "../components/ui";
+import { ContactsIcon, PlusIcon, SearchIcon, TrashIcon } from "../components/icons";
+import { useToast } from "../context/ToastContext";
+import { useHotkeys } from "../lib/useHotkeys";
 
 const STATUSES: ContactStatus[] = ["lead", "active", "customer", "inactive"];
 
@@ -39,6 +42,7 @@ const emptyForm: ContactInput = {
 };
 
 export default function Contacts() {
+  const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
@@ -49,15 +53,22 @@ export default function Contacts() {
   const [form, setForm] = useState<ContactInput>(emptyForm);
   const [tagsText, setTagsText] = useState("");
   const [saving, setSaving] = useState(false);
+  const searchRef = useRef<HTMLInputElement>(null);
 
   async function refresh() {
-    const [c, co] = await Promise.all([listContacts(), listCompanies()]);
-    setContacts(c);
-    setCompanies(co);
-    setLoading(false);
+    try {
+      const [c, co] = await Promise.all([listContacts(), listCompanies()]);
+      setContacts(c);
+      setCompanies(co);
+    } catch {
+      toast.error("Couldn't load contacts. Check your connection.");
+    } finally {
+      setLoading(false);
+    }
   }
   useEffect(() => {
     refresh();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const companyName = (id: string | null) =>
@@ -99,11 +110,26 @@ export default function Contacts() {
     setModalOpen(true);
   }
 
+  useHotkeys(
+    {
+      "/": (e) => {
+        e.preventDefault();
+        searchRef.current?.focus();
+      },
+      n: (e) => {
+        e.preventDefault();
+        openNew();
+      },
+    },
+    !modalOpen
+  );
+
   async function save() {
-    if (!form.name.trim()) return;
+    if (!form.name.trim() || saving) return;
     setSaving(true);
     const payload: ContactInput = {
       ...form,
+      name: form.name.trim(),
       email: form.email || null,
       phone: form.phone || null,
       notes: form.notes || null,
@@ -112,17 +138,49 @@ export default function Contacts() {
         .map((t) => t.trim())
         .filter(Boolean),
     };
-    if (editing) await updateContact(editing.id, payload);
-    else await createContact(payload);
-    setSaving(false);
-    setModalOpen(false);
-    await refresh();
+    try {
+      if (editing) {
+        await updateContact(editing.id, payload);
+        toast.success(`Saved ${payload.name}`);
+      } else {
+        await createContact(payload);
+        toast.success(`Added ${payload.name}`);
+      }
+      setModalOpen(false);
+      await refresh();
+    } catch {
+      toast.error("Couldn't save. Please try again.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function remove(c: Contact) {
-    if (!confirm(`Delete ${c.name}? This also removes their tasks.`)) return;
-    await deleteContact(c.id);
-    await refresh();
+    try {
+      await deleteContact(c.id);
+      await refresh();
+      toast.success(`Deleted ${c.name}`, {
+        label: "Undo",
+        onClick: async () => {
+          try {
+            await createContact({
+              name: c.name,
+              email: c.email,
+              phone: c.phone,
+              company_id: c.company_id,
+              status: c.status,
+              tags: c.tags,
+              notes: c.notes,
+            });
+            await refresh();
+          } catch {
+            toast.error("Couldn't restore the contact.");
+          }
+        },
+      });
+    } catch {
+      toast.error("Couldn't delete. Please try again.");
+    }
   }
 
   if (loading) return <Spinner />;
@@ -132,16 +190,29 @@ export default function Contacts() {
       {/* Toolbar */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-1 flex-col gap-2 sm:flex-row sm:items-center">
-          <TextInput
-            placeholder="Search name, email, company, tag…"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
+          <div className="relative flex-1">
+            <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-slate-400">
+              <SearchIcon size={16} />
+            </span>
+            <input
+              ref={searchRef}
+              className="input pl-9 pr-9"
+              placeholder="Search name, email, company, tag…"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+            {!query && (
+              <span className="pointer-events-none absolute inset-y-0 right-3 hidden items-center sm:flex">
+                <span className="kbd">/</span>
+              </span>
+            )}
+          </div>
           <Select
             value={statusFilter}
             onChange={(e) =>
               setStatusFilter(e.target.value as ContactStatus | "all")
             }
+            className="input sm:w-40"
           >
             <option value="all">All statuses</option>
             {STATUSES.map((s) => (
@@ -152,13 +223,13 @@ export default function Contacts() {
           </Select>
         </div>
         <button className="btn-primary whitespace-nowrap" onClick={openNew}>
-          + Add contact
+          <PlusIcon size={16} /> Add contact
         </button>
       </div>
 
       {filtered.length === 0 ? (
         <EmptyState
-          icon="☺"
+          icon={<ContactsIcon size={22} />}
           title={contacts.length === 0 ? "No contacts yet" : "No matches"}
           subtitle={
             contacts.length === 0
@@ -168,7 +239,7 @@ export default function Contacts() {
           action={
             contacts.length === 0 ? (
               <button className="btn-primary" onClick={openNew}>
-                + Add your first contact
+                <PlusIcon size={16} /> Add your first contact
               </button>
             ) : undefined
           }
@@ -195,15 +266,13 @@ export default function Contacts() {
                 {filtered.map((c) => (
                   <tr
                     key={c.id}
-                    className="group cursor-pointer hover:bg-slate-50/70"
+                    className="group cursor-pointer transition-colors hover:bg-slate-50/70"
                     onClick={() => openEdit(c)}
                   >
                     <td className="px-5 py-3">
                       <div className="flex items-center gap-3">
                         <Avatar name={c.name} />
-                        <div className="font-medium text-slate-800">
-                          {c.name}
-                        </div>
+                        <div className="font-medium text-slate-800">{c.name}</div>
                       </div>
                     </td>
                     <td className="px-5 py-3 text-slate-600">
@@ -212,7 +281,9 @@ export default function Contacts() {
                     <td className="hidden px-5 py-3 text-slate-500 md:table-cell">
                       <div>{c.email || "—"}</div>
                       {c.phone && (
-                        <div className="text-xs text-slate-400">{c.phone}</div>
+                        <div className="tnum text-xs text-slate-500">
+                          {c.phone}
+                        </div>
                       )}
                     </td>
                     <td className="px-5 py-3">
@@ -234,13 +305,14 @@ export default function Contacts() {
                     </td>
                     <td className="px-5 py-3 text-right">
                       <button
-                        className="btn-danger opacity-0 transition-opacity group-hover:opacity-100 !px-2 !py-1 text-xs"
+                        className="btn-danger !px-2 !py-1 text-xs opacity-0 transition-opacity focus-visible:opacity-100 group-hover:opacity-100"
                         onClick={(e) => {
                           e.stopPropagation();
                           remove(c);
                         }}
+                        aria-label={`Delete ${c.name}`}
                       >
-                        Delete
+                        <TrashIcon size={15} />
                       </button>
                     </td>
                   </tr>
@@ -254,10 +326,15 @@ export default function Contacts() {
       <Modal
         open={modalOpen}
         onClose={() => setModalOpen(false)}
+        onSubmit={save}
         title={editing ? "Edit contact" : "New contact"}
         footer={
           <>
-            <button className="btn-ghost" onClick={() => setModalOpen(false)}>
+            <span className="mr-auto hidden text-xs text-slate-400 sm:block">
+              <span className="kbd">⌘</span>
+              <span className="kbd ml-1">⏎</span> to save
+            </span>
+            <button className="btn-secondary" onClick={() => setModalOpen(false)}>
               Cancel
             </button>
             <button

@@ -15,6 +15,9 @@ import {
   Spinner,
   TextInput,
 } from "../components/ui";
+import { TasksIcon, PlusIcon, TrashIcon } from "../components/icons";
+import { useToast } from "../context/ToastContext";
+import { useHotkeys } from "../lib/useHotkeys";
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -35,6 +38,7 @@ const GROUP_STYLES: Record<string, string> = {
 };
 
 export default function Tasks() {
+  const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
@@ -46,13 +50,19 @@ export default function Tasks() {
   const [saving, setSaving] = useState(false);
 
   async function refresh() {
-    const [t, c] = await Promise.all([listTasks(), listContacts()]);
-    setTasks(t);
-    setContacts(c);
-    setLoading(false);
+    try {
+      const [t, c] = await Promise.all([listTasks(), listContacts()]);
+      setTasks(t);
+      setContacts(c);
+    } catch {
+      toast.error("Couldn't load tasks. Check your connection.");
+    } finally {
+      setLoading(false);
+    }
   }
   useEffect(() => {
     refresh();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const contactName = (id: string | null) =>
@@ -74,29 +84,74 @@ export default function Tasks() {
 
   const order = showDone ? [...GROUP_ORDER, "Done"] : GROUP_ORDER;
 
-  async function save() {
-    if (!title.trim()) return;
-    setSaving(true);
-    await createTask({
-      title: title.trim(),
-      due_date: dueDate || null,
-      contact_id: contactId || null,
-    });
-    setSaving(false);
-    setModalOpen(false);
+  function openNew() {
     setTitle("");
     setDueDate(today());
     setContactId("");
-    await refresh();
+    setModalOpen(true);
+  }
+
+  useHotkeys(
+    {
+      n: (e) => {
+        e.preventDefault();
+        openNew();
+      },
+    },
+    !modalOpen
+  );
+
+  async function save() {
+    if (!title.trim() || saving) return;
+    setSaving(true);
+    try {
+      await createTask({
+        title: title.trim(),
+        due_date: dueDate || null,
+        contact_id: contactId || null,
+      });
+      toast.success("Task added");
+      setModalOpen(false);
+      await refresh();
+    } catch {
+      toast.error("Couldn't save the task. Please try again.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function onToggle(t: Task) {
-    await toggleTask(t.id, !t.done);
-    await refresh();
+    try {
+      await toggleTask(t.id, !t.done);
+      await refresh();
+      if (!t.done) toast.success(`Completed: ${t.title}`);
+    } catch {
+      toast.error("Couldn't update the task.");
+    }
   }
+
   async function remove(t: Task) {
-    await deleteTask(t.id);
-    await refresh();
+    try {
+      await deleteTask(t.id);
+      await refresh();
+      toast.success("Task deleted", {
+        label: "Undo",
+        onClick: async () => {
+          try {
+            await createTask({
+              title: t.title,
+              due_date: t.due_date,
+              contact_id: t.contact_id,
+            });
+            await refresh();
+          } catch {
+            toast.error("Couldn't restore the task.");
+          }
+        },
+      });
+    } catch {
+      toast.error("Couldn't delete the task.");
+    }
   }
 
   if (loading) return <Spinner />;
@@ -115,19 +170,19 @@ export default function Tasks() {
           />
           Show completed
         </label>
-        <button className="btn-primary" onClick={() => setModalOpen(true)}>
-          + New task
+        <button className="btn-primary" onClick={openNew}>
+          <PlusIcon size={16} /> New task
         </button>
       </div>
 
       {openCount === 0 && !showDone ? (
         <EmptyState
-          icon="✓"
+          icon={<TasksIcon size={22} />}
           title="No open follow-ups"
           subtitle="Create a task to remind yourself to call, email, or send a proposal."
           action={
-            <button className="btn-primary" onClick={() => setModalOpen(true)}>
-              + New task
+            <button className="btn-primary" onClick={openNew}>
+              <PlusIcon size={16} /> New task
             </button>
           }
         />
@@ -144,7 +199,7 @@ export default function Tasks() {
                   }`}
                 >
                   {group}
-                  <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-500">
+                  <span className="tnum rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-500">
                     {items.length}
                   </span>
                 </div>
@@ -161,6 +216,7 @@ export default function Tasks() {
                           checked={t.done}
                           onChange={() => onToggle(t)}
                           className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                          aria-label={t.done ? "Mark incomplete" : "Mark complete"}
                         />
                         <div className="min-w-0 flex-1">
                           <div
@@ -172,16 +228,17 @@ export default function Tasks() {
                           >
                             {t.title}
                           </div>
-                          <div className="flex gap-2 text-xs text-slate-400">
-                            {t.due_date && <span>{t.due_date}</span>}
+                          <div className="flex gap-2 text-xs text-slate-500">
+                            {t.due_date && <span className="tnum">{t.due_date}</span>}
                             {name && <span>· {name}</span>}
                           </div>
                         </div>
                         <button
-                          className="btn-danger opacity-0 transition-opacity group-hover:opacity-100 !px-2 !py-1 text-xs"
+                          className="btn-danger !px-2 !py-1 text-xs opacity-0 transition-opacity focus-visible:opacity-100 group-hover:opacity-100"
                           onClick={() => remove(t)}
+                          aria-label="Delete task"
                         >
-                          Delete
+                          <TrashIcon size={15} />
                         </button>
                       </div>
                     );
@@ -196,10 +253,15 @@ export default function Tasks() {
       <Modal
         open={modalOpen}
         onClose={() => setModalOpen(false)}
+        onSubmit={save}
         title="New task"
         footer={
           <>
-            <button className="btn-ghost" onClick={() => setModalOpen(false)}>
+            <span className="mr-auto hidden text-xs text-slate-400 sm:block">
+              <span className="kbd">⌘</span>
+              <span className="kbd ml-1">⏎</span> to save
+            </span>
+            <button className="btn-secondary" onClick={() => setModalOpen(false)}>
               Cancel
             </button>
             <button

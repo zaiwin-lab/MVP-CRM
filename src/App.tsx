@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
+import { ToastProvider } from "./context/ToastContext";
 import Layout from "./components/Layout";
 import Dashboard from "./pages/Dashboard";
 import Contacts from "./pages/Contacts";
@@ -38,9 +39,11 @@ function Gate() {
 export default function App() {
   return (
     <BrowserRouter>
-      <AuthProvider>
-        <Gate />
-      </AuthProvider>
+      <ToastProvider>
+        <AuthProvider>
+          <Gate />
+        </AuthProvider>
+      </ToastProvider>
     </BrowserRouter>
   );
 }
