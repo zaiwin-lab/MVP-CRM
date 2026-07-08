@@ -25,7 +25,14 @@ import {
   TextArea,
   TextInput,
 } from "../components/ui";
-import { ContactsIcon, PlusIcon, SearchIcon, TrashIcon } from "../components/icons";
+import {
+  ContactsIcon,
+  PlusIcon,
+  SearchIcon,
+  TrashIcon,
+  UploadIcon,
+} from "../components/icons";
+import ImportModal from "../components/ImportModal";
 import { useToast } from "../context/ToastContext";
 import { useHotkeys } from "../lib/useHotkeys";
 
@@ -53,6 +60,7 @@ export default function Contacts() {
   const [form, setForm] = useState<ContactInput>(emptyForm);
   const [tagsText, setTagsText] = useState("");
   const [saving, setSaving] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
 
   async function refresh() {
@@ -222,9 +230,17 @@ export default function Contacts() {
             ))}
           </Select>
         </div>
-        <button className="btn-primary whitespace-nowrap" onClick={openNew}>
-          <PlusIcon size={16} /> Add contact
-        </button>
+        <div className="flex gap-2">
+          <button
+            className="btn-secondary whitespace-nowrap"
+            onClick={() => setImportOpen(true)}
+          >
+            <UploadIcon size={16} /> Import
+          </button>
+          <button className="btn-primary whitespace-nowrap" onClick={openNew}>
+            <PlusIcon size={16} /> Add contact
+          </button>
+        </div>
       </div>
 
       {filtered.length === 0 ? (
@@ -420,6 +436,12 @@ export default function Contacts() {
           </Field>
         </div>
       </Modal>
+
+      <ImportModal
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        onImported={refresh}
+      />
     </div>
   );
 }

@@ -1,7 +1,9 @@
 # KOBIS Connect
 
 A simple, clean CRM for a small team — **contacts & companies**, **tasks /
-follow-ups**, and a **dashboard** with KPIs and an activity feed.
+follow-ups**, a **dashboard** with KPIs and an activity feed, and
+**Excel/CSV import** (upload a spreadsheet, map the columns, and every contact
+lands in the app — companies are created and linked automatically).
 
 Built with **React + Vite + TypeScript + Tailwind**, with **Supabase** for the
 shared database and login.

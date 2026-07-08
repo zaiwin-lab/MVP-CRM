@@ -106,6 +106,27 @@ export const ArrowRightIcon = (p: SVGProps<SVGSVGElement> & { size?: number }) =
   </Icon>
 );
 
+export const UploadIcon = (p: SVGProps<SVGSVGElement> & { size?: number }) => (
+  <Icon {...p}>
+    <path d="M12 15V4M8 8l4-4 4 4" />
+    <path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" />
+  </Icon>
+);
+
+export const DownloadIcon = (p: SVGProps<SVGSVGElement> & { size?: number }) => (
+  <Icon {...p}>
+    <path d="M12 4v11M8 11l4 4 4-4" />
+    <path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" />
+  </Icon>
+);
+
+export const FileIcon = (p: SVGProps<SVGSVGElement> & { size?: number }) => (
+  <Icon {...p}>
+    <path d="M13 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9z" />
+    <path d="M13 3v6h6" />
+  </Icon>
+);
+
 export const BellIcon = (p: SVGProps<SVGSVGElement> & { size?: number }) => (
   <Icon {...p}>
     <path d="M6 9a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6" />

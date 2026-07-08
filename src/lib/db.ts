@@ -247,6 +247,66 @@ export async function deleteContact(id: string): Promise<void> {
   writeLocal(db);
 }
 
+/**
+ * Ensure a company exists for each name (case-insensitive). Creates the
+ * missing ones and returns a lowercased-name -> id map for linking contacts.
+ * Used by the spreadsheet importer.
+ */
+export async function ensureCompaniesByName(
+  names: string[]
+): Promise<Record<string, string>> {
+  const wanted = [...new Set(names.map((n) => n.trim()).filter(Boolean))];
+  const existing = await listCompanies();
+  const map: Record<string, string> = {};
+  for (const c of existing) map[c.name.toLowerCase()] = c.id;
+
+  const missing = wanted.filter((n) => !(n.toLowerCase() in map));
+  for (const name of missing) {
+    const company = await createCompany({
+      name,
+      website: null,
+      industry: null,
+      notes: null,
+    });
+    map[name.toLowerCase()] = company.id;
+  }
+  return map;
+}
+
+/** Insert many contacts at once (spreadsheet import). Returns the created rows. */
+export async function bulkCreateContacts(
+  inputs: ContactInput[]
+): Promise<Contact[]> {
+  if (!inputs.length) return [];
+  if (isSupabaseConfigured) {
+    const { data, error } = await supabase!
+      .from("contacts")
+      .insert(inputs)
+      .select();
+    if (error) throw error;
+    await logActivity(
+      "contact_created",
+      `Imported ${inputs.length} contact${inputs.length === 1 ? "" : "s"}`
+    );
+    return data as Contact[];
+  }
+  const db = readLocal();
+  const created: Contact[] = inputs.map((input) => ({
+    id: uid(),
+    created_at: now(),
+    updated_at: now(),
+    ...input,
+  }));
+  db.contacts.push(...created);
+  pushLocalActivity(
+    db,
+    "contact_created",
+    `Imported ${inputs.length} contact${inputs.length === 1 ? "" : "s"}`
+  );
+  writeLocal(db);
+  return created;
+}
+
 // ---------------------------------------------------------------------------
 // Tasks
 // ---------------------------------------------------------------------------
