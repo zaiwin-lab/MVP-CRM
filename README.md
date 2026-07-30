@@ -99,3 +99,14 @@ npm run dev       # local dev server
 npm run build     # typecheck + production build to dist/
 npm run preview   # preview the production build
 ```
+
+
+---
+
+## Portfolio Status & Delivery Role
+
+**Status:** Functional product prototype with demo and shared-database modes.
+
+Product strategy, workflow requirements and solution direction are led by **Zaiwin Kassim**, together with the **KOBIS AI Prodigy Team**, using supervised AI-assisted development.
+
+The repository demonstrates CRM workflow design, dual-mode data architecture, practical spreadsheet onboarding and deployment readiness. Production use requires organisation-specific security configuration, access policies, backups and user acceptance testing.
